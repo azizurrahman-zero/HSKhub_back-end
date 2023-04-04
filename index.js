@@ -27,9 +27,24 @@ async function run() {
     const wordsCollection = database.collection("Words");
 
     app.get("/words", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
       const query = {};
       const cursor = wordsCollection.find(query);
-      const words = await cursor.toArray();
+      let words;
+      if (page || size) {
+        words = await cursor
+          .sort({ no: 1 })
+          .collation({
+            locale: "en_US",
+            numericOrdering: true,
+          })
+          .skip(page * size)
+          .limit(size)
+          .toArray();
+      } else {
+        words = await cursor.toArray();
+      }
       res.send(words);
     });
 
@@ -37,6 +52,11 @@ async function run() {
       const word = req.body;
       const result = await wordsCollection.insertOne(word);
       res.send(result);
+    });
+
+    app.get("/wordCount", async (req, res) => {
+      const count = await wordsCollection.estimatedDocumentCount();
+      res.send({ count });
     });
   } finally {
     // await client.close();
